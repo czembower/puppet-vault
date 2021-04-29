@@ -2,9 +2,10 @@
   "name": "czembower-vault",
   "version": "0.1.0",
   "author": "Chris Zembower",
-  "summary": "",
+  "summary": "Retrieve secrets from Hashicorp Vault",
   "license": "Apache-2.0",
-  "source": "",
+  "source": "https://github.com/czembower/puppet-vault",
+  "issues_url": "https://github.com/czembower/puppet-vault/issues",
   "dependencies": [
 
   ],
