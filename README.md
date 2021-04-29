@@ -1,117 +1,63 @@
-# vault
-
-Welcome to your new module. A short overview of the generated parts can be found
-in the [PDK documentation][1].
-
-The README template below provides a starting point with details about what
-information to include in your README.
+# puppet-vault
 
 ## Table of Contents
 
 1. [Description](#description)
-1. [Setup - The basics of getting started with vault](#setup)
-    * [What vault affects](#what-vault-affects)
-    * [Setup requirements](#setup-requirements)
-    * [Beginning with vault](#beginning-with-vault)
-1. [Usage - Configuration options and additional functionality](#usage)
-1. [Limitations - OS compatibility, etc.](#limitations)
-1. [Development - Guide for contributing to the module](#development)
+1. [Usage](#usage)
+1. [Limitations](#limitations)
 
 ## Description
 
-Briefly tell users why they might want to use your module. Explain what your
-module does and what kind of problems users can solve with it.
-
-This should be a fairly short description helps the user decide if your module
-is what they want.
-
-## Setup
-
-### What vault affects **OPTIONAL**
-
-If it's obvious what your module touches, you can skip this section. For
-example, folks can probably figure out that your mysql_instance module affects
-their MySQL instances.
-
-If there's more that they should know about, though, this is the place to
-mention:
-
-* Files, packages, services, or operations that the module will alter, impact,
-  or execute.
-* Dependencies that your module automatically installs.
-* Warnings or other important notices.
-
-### Setup Requirements **OPTIONAL**
-
-If your module requires anything extra before setting up (pluginsync enabled,
-another module, etc.), mention it here.
-
-If your most recent release breaks compatibility or requires particular steps
-for upgrading, you might want to include an additional "Upgrading" section here.
-
-### Beginning with vault
-
-The very basic steps needed for a user to get the module up and running. This
-can include setup steps, if necessary, or it can be an example of the most basic
-use of the module.
+Puppet module that provides a function to access Hashicorp Vault secrets within
+Puppet manifests. Utilizes the Deferred Function capabilities of Puppet 6.22+ to
+enable client-side lookups at agent run time. Appropriate use cases include delivering
+the secret to an input parameter of another module, or rendering a template file that
+contains the secret value.
 
 ## Usage
 
-Include usage examples for common use cases in the **Usage** section. Show your
-users how to use your module to solve problems, and be sure to include code
-examples. Include three to five examples of the most important or common tasks a
-user can accomplish with your module. Show users how to accomplish more complex
-tasks that involve different types, classes, and functions working in tandem.
-
-## Reference
-
-This section is deprecated. Instead, add reference information to your code as
-Puppet Strings comments, and then use Strings to generate a REFERENCE.md in your
-module. For details on how to add code comments and generate documentation with
-Strings, see the [Puppet Strings documentation][2] and [style guide][3].
-
-If you aren't ready to use Strings yet, manually create a REFERENCE.md in the
-root of your module directory and list out each of your module's classes,
-defined types, facts, functions, Puppet tasks, task plans, and resource types
-and providers, along with the parameters for each.
-
-For each element (class, defined type, function, and so on), list:
-
-* The data type, if applicable.
-* A description of what the element does.
-* Valid values, if the data type doesn't make it obvious.
-* Default value, if any.
-
-For example:
+Simply declare the function with appropriate parameters to store your secret in 
+a variable. Input parameters to the function are ordered (not named).
 
 ```
-### `pet::cat`
-
-#### Parameters
-
-##### `meow`
-
-Enables vocalization in your cat. Valid options: 'string'.
-
-Default: 'medium-loud'.
+$my_secret_value = Deferred(
+    'vault::get_secret', [
+      'http://127.0.0.1:8100',         # address of Vault service
+      'path/to/my/secret',             # path to secret in Vault 
+      'field',                         # field of secret
+      false                            # boolean to set whether secret is kv_v2 type
+    ]
+  )
 ```
+
+To render a template that contains the secret value, use inline_epp:
+```
+$variables = {
+  'password' => Deferred(
+                    'vault::get_secret', [
+                    'http://127.0.0.1:8100',
+                    'path/to/my/secret',
+                    'field',
+                    false
+                    ]
+                )
+}
+
+file { '/etc/secrets.conf':
+  ensure  => file,
+  content => Deferred('inline_epp',
+               ['PASSWORD=<%= $password.unwrap %>', $variables]),
+}
+```
+
+### Ordered Parameters
+* `vault_uri`: \[string\] Address of Vault service including protocol and port (required)
+* `secret`: \[string\] Path to secret (required)
+* `field`: \[string\] Field of secret (required)
+* `kv_v2`: \[bool\] Whether the secret is within a kv_v2 mount, which affects how we handle the data payload (required)
+* `token_path`: \[string\] If supplied, uses the token value found in a local file - otherwise, the function assumes that Vault authentication is handled via other means, such as AppRole, IAM, etc. (optional)
+* `token_wrapped`: \[bool\] Whether the token provided is wrapped (optional - default: false)
 
 ## Limitations
 
-In the Limitations section, list any incompatibilities, known issues, or other
-warnings.
-
-## Development
-
-In the Development section, tell other users the ground rules for contributing
-to your project and how they should submit their work.
-
-## Release Notes/Contributors/Etc. **Optional**
-
-If you aren't using changelog, put your release notes here (though you should
-consider using changelog). You can also add any additional sections you feel are
-necessary or important to include here. Please use the `##` header.
-
-[1]: https://puppet.com/docs/pdk/latest/pdk_generating_modules.html
-[2]: https://puppet.com/docs/puppet/latest/puppet_strings.html
-[3]: https://puppet.com/docs/puppet/latest/puppet_strings_style.html
+This module relies on Puppet Deferred Functions, which are only available in Puppet 6.22+
